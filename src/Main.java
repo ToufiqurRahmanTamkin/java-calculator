@@ -2,6 +2,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.Stack;
 
 public class Main implements ActionListener {
     private JFrame frame;
@@ -10,24 +11,20 @@ public class Main implements ActionListener {
     private JButton addButton, subButton, mulButton, divButton, equButton, clrButton, modButton, dotButton;
     private JPanel panel;
 
-    private double num1, num2, result;
-    private char operator;
-    private boolean isOperatorPressed = false;
-
     public Main() {
         frame = new JFrame("Calculator");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(350, 550);
+        frame.setSize(400, 600);
         frame.setLayout(null);
-        frame.getContentPane().setBackground(new Color(30, 30, 30));
+        frame.getContentPane().setBackground(Color.BLACK);
 
         textField = new JTextField();
-        textField.setBounds(20, 25, 300, 60);
+        textField.setBounds(20, 25, 340, 80);
         textField.setEditable(false);
-        textField.setBackground(new Color(50, 50, 50));
+        textField.setBackground(Color.BLACK);
         textField.setForeground(Color.WHITE);
         textField.setHorizontalAlignment(SwingConstants.RIGHT);
-        textField.setFont(new Font("Arial", Font.BOLD, 30));
+        textField.setFont(new Font("Arial", Font.BOLD, 40));
         frame.add(textField);
 
         clrButton = new JButton("AC");
@@ -39,20 +36,26 @@ public class Main implements ActionListener {
         equButton = new JButton("=");
         dotButton = new JButton(".");
 
-        for (int i = 0; i < 10; i++) {
-            numberButtons[i] = new JButton(String.valueOf(i));
-            numberButtons[i].addActionListener(this);
-        }
-
         JButton[] functionButtons = {clrButton, modButton, divButton, mulButton, subButton, addButton, equButton, dotButton};
         for (JButton button : functionButtons) {
             button.addActionListener(this);
+            button.setBackground(new Color(255, 159, 10)); // Apple-style orange
+            button.setForeground(Color.WHITE);
+            button.setFont(new Font("Arial", Font.BOLD, 30));
+        }
+
+        for (int i = 0; i < 10; i++) {
+            numberButtons[i] = new JButton(String.valueOf(i));
+            numberButtons[i].addActionListener(this);
+            numberButtons[i].setBackground(new Color(51, 51, 51)); // Apple-style gray
+            numberButtons[i].setForeground(Color.WHITE);
+            numberButtons[i].setFont(new Font("Arial", Font.BOLD, 30));
         }
 
         panel = new JPanel();
-        panel.setBounds(20, 100, 300, 400);
+        panel.setBounds(20, 120, 340, 420);
         panel.setLayout(new GridBagLayout());
-        panel.setBackground(new Color(30, 30, 30));
+        panel.setBackground(Color.BLACK);
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.BOTH;
         gbc.insets = new Insets(5, 5, 5, 5);
@@ -113,39 +116,90 @@ public class Main implements ActionListener {
 
     @Override
     public void actionPerformed(ActionEvent e) {
+        String currentText = textField.getText();
         for (int i = 0; i < 10; i++) {
             if (e.getSource() == numberButtons[i]) {
-                if (isOperatorPressed) {
-                    textField.setText("");
-                    isOperatorPressed = false;
-                }
-                textField.setText(textField.getText() + i);
+                textField.setText(currentText + i);
             }
         }
         if (e.getSource() == clrButton) {
             textField.setText("");
-        } else if (e.getSource() == addButton || e.getSource() == subButton || e.getSource() == mulButton || e.getSource() == divButton || e.getSource() == modButton) {
-            num1 = Double.parseDouble(textField.getText());
-            operator = e.getActionCommand().charAt(0);
-            isOperatorPressed = true;
-        } else if (e.getSource() == equButton) {
-            num2 = Double.parseDouble(textField.getText());
-            switch (operator) {
-                case '+': result = num1 + num2; break;
-                case '-': result = num1 - num2; break;
-                case '×': result = num1 * num2; break;
-                case '/': result = num1 / num2; break;
-                case '%': result = num1 % num2; break;
+        } else if (e.getSource() == addButton || e.getSource() == subButton ||
+                e.getSource() == mulButton || e.getSource() == divButton ||
+                e.getSource() == modButton) {
+            if (!currentText.isEmpty() && "+-×/%".contains(currentText.substring(currentText.length() - 1))) {
+                textField.setText(currentText.substring(0, currentText.length() - 1) + e.getActionCommand());
+            } else {
+                textField.setText(currentText + e.getActionCommand());
             }
-            textField.setText(String.valueOf(result));
+        } else if (e.getSource() == equButton) {
+            try {
+                double result = evaluateExpression(currentText);
+                textField.setText(String.valueOf(result));
+            } catch (Exception ex) {
+                textField.setText("Error");
+            }
         } else if (e.getSource() == dotButton) {
-            if (!textField.getText().contains(".")) {
-                textField.setText(textField.getText() + ".");
+            if (!currentText.contains(".")) {
+                textField.setText(currentText + ".");
             }
         }
     }
 
+    private double evaluateExpression(String expression) {
+        expression = expression.replace("×", "*");
+
+        Stack<Double> numbers = new Stack<>();
+        Stack<Character> operators = new Stack<>();
+
+        for (int i = 0; i < expression.length(); i++) {
+            char c = expression.charAt(i);
+
+            if (Character.isDigit(c) || c == '.') {
+                StringBuilder num = new StringBuilder();
+                while (i < expression.length() &&
+                        (Character.isDigit(expression.charAt(i)) || expression.charAt(i) == '.')) {
+                    num.append(expression.charAt(i));
+                    i++;
+                }
+                i--;
+                numbers.push(Double.parseDouble(num.toString()));
+            } else if (c == '+' || c == '-' || c == '*' || c == '/' || c == '%') {
+                while (!operators.empty() && hasPrecedence(c, operators.peek())) {
+                    numbers.push(applyOperation(operators.pop(), numbers.pop(), numbers.pop()));
+                }
+                operators.push(c);
+            }
+        }
+
+        while (!operators.empty()) {
+            numbers.push(applyOperation(operators.pop(), numbers.pop(), numbers.pop()));
+        }
+
+        return numbers.pop();
+    }
+
+    private boolean hasPrecedence(char op1, char op2) {
+        if ((op1 == '*' || op1 == '/' || op1 == '%') && (op2 == '+' || op2 == '-')) {
+            return false;
+        }
+        return true;
+    }
+
+    private double applyOperation(char operator, double b, double a) {
+        switch (operator) {
+            case '+': return a + b;
+            case '-': return a - b;
+            case '*': return a * b;
+            case '/':
+                if (b == 0) throw new ArithmeticException("Division by zero");
+                return a / b;
+            case '%': return a % b;
+        }
+        return 0;
+    }
+
     public static void main(String[] args) {
-        new Main();
+        SwingUtilities.invokeLater(() -> new Main());
     }
 }
