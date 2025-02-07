@@ -180,23 +180,21 @@ public class Main implements ActionListener {
     }
 
     private boolean hasPrecedence(char op1, char op2) {
-        if ((op1 == '*' || op1 == '/' || op1 == '%') && (op2 == '+' || op2 == '-')) {
-            return false;
-        }
-        return true;
+        return (op1 != '*' && op1 != '/' && op1 != '%') || (op2 != '+' && op2 != '-');
     }
 
     private double applyOperation(char operator, double b, double a) {
-        switch (operator) {
-            case '+': return a + b;
-            case '-': return a - b;
-            case '*': return a * b;
-            case '/':
+        return switch (operator) {
+            case '+' -> a + b;
+            case '-' -> a - b;
+            case '*' -> a * b;
+            case '/' -> {
                 if (b == 0) throw new ArithmeticException("Division by zero");
-                return a / b;
-            case '%': return a % b;
-        }
-        return 0;
+                yield a / b;
+            }
+            case '%' -> a % b;
+            default -> 0;
+        };
     }
 
     public static void main(String[] args) {
